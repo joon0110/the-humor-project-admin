@@ -8,7 +8,7 @@ export default async function UserPage() {
   const { data } = await supabase.auth.getUser();
   const email = data.user?.email ?? "";
   const displayName =
-    data.user?.user_metadata?.full_name || email || "Admin";
+    data.user?.user_metadata?.full_name || email || "Account";
 
   return (
     <SidebarNav activeKey="user" displayName={displayName}>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import AccountMenu from "@/app/components/AccountMenu";
 
 const NAV_ITEMS = [
-  { href: "/welcome", label: "Overview", key: "overview" },
+  { href: "/overview", label: "Overview", key: "overview" },
   { href: "/user", label: "User", key: "user" },
   { href: "/images", label: "Images", key: "images" },
   { href: "/captions", label: "Captions", key: "captions" },

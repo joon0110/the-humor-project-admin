@@ -10,6 +10,8 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const showDomainError = resolvedSearchParams?.error === "domain";
+  const showProfileError = resolvedSearchParams?.error === "profile";
+  const showAdminError = resolvedSearchParams?.error === "admin";
   const hasEnv = hasSupabaseEnv();
 
   return (
@@ -28,6 +30,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {showDomainError && (
             <div className="rounded-lg border border-red-900/40 bg-red-950/40 p-3 text-xs text-red-200">
               Please use a @columbia.edu or @barnard.edu Google account.
+            </div>
+          )}
+          {showProfileError && (
+            <div className="rounded-lg border border-red-900/40 bg-red-950/40 p-3 text-xs text-red-200">
+              Your Google account is missing a name or email.
+            </div>
+          )}
+          {showAdminError && (
+            <div className="rounded-lg border border-red-900/40 bg-red-950/40 p-3 text-xs text-red-200">
+              Your account is not authorized for admin access.
             </div>
           )}
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">

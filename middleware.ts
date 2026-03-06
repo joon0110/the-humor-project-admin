@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getSupabaseConfig, hasSupabaseEnv } from "./lib/supabase/config";
+import { isAllowedEmailDomain } from "./lib/auth/allowed-domains";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
 
@@ -38,7 +39,36 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession();
 
     if (session) {
-      return NextResponse.redirect(new URL("/welcome", request.url));
+      const { data } = await supabase.auth.getUser();
+      const email = data.user?.email ?? "";
+      const fullName =
+        (data.user?.user_metadata?.full_name as string | undefined) ??
+        (data.user?.user_metadata?.name as string | undefined) ??
+        "";
+      const userId = data.user?.id ?? "";
+
+      if (!email || !fullName.trim()) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/login?error=profile", request.url));
+      }
+
+      if (!isAllowedEmailDomain(email)) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/login?error=domain", request.url));
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("is_superadmin")
+        .eq("id", userId)
+        .single();
+
+      if (profileError || !profile?.is_superadmin) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/login?error=admin", request.url));
+      }
+
+      return NextResponse.redirect(new URL("/overview", request.url));
     }
 
     return response;
@@ -70,6 +100,35 @@ export async function middleware(request: NextRequest) {
 
   if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email ?? "";
+  const fullName =
+    (data.user?.user_metadata?.full_name as string | undefined) ??
+    (data.user?.user_metadata?.name as string | undefined) ??
+    "";
+  const userId = data.user?.id ?? "";
+
+  if (!email || !fullName.trim()) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?error=profile", request.url));
+  }
+
+  if (!isAllowedEmailDomain(email)) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?error=domain", request.url));
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("is_superadmin")
+    .eq("id", userId)
+    .single();
+
+  if (profileError || !profile?.is_superadmin) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?error=admin", request.url));
   }
 
   return response;
