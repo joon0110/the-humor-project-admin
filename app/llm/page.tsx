@@ -15,7 +15,6 @@ export default async function LlmPage() {
       <div className="space-y-6">
         <header className="space-y-2">
           <h1 className="text-4xl font-semibold tracking-tight">LLM</h1>
-          <p className="text-sm text-zinc-400">Signed in as {email}.</p>
         </header>
 
         <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-sm text-zinc-300">
