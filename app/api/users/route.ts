@@ -17,7 +17,12 @@ type ProfileRow = {
   activity?: { images: number; captions: number };
 };
 
-function applyRoleFilter(query: any, role: RoleFilter) {
+type QueryLike<T> = {
+  eq: (column: string, value: unknown) => T;
+  or: (filters: string) => T;
+};
+
+function applyRoleFilter<T extends QueryLike<T>>(query: T, role: RoleFilter) {
   if (role === "superadmin") {
     return query.eq("is_superadmin", true);
   }
@@ -30,7 +35,7 @@ function applyRoleFilter(query: any, role: RoleFilter) {
   return query;
 }
 
-function applySearchFilter(query: any, search: string) {
+function applySearchFilter<T extends QueryLike<T>>(query: T, search: string) {
   if (!search) {
     return query;
   }

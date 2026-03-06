@@ -90,9 +90,6 @@ export default function UserTable({
   const [updatingRoles, setUpdatingRoles] = useState<Record<string, boolean>>(
     {}
   );
-  const [activityProfileId, setActivityProfileId] = useState<string | null>(
-    null
-  );
   const [activityData, setActivityData] = useState<ActivityPayload | null>(
     null
   );
@@ -210,7 +207,6 @@ export default function UserTable({
     setIsActivityOpen(true);
     setIsActivityLoading(true);
     setActivityView(view);
-    setActivityProfileId(profile.id);
     setActivityData(null);
 
     try {
@@ -247,7 +243,6 @@ export default function UserTable({
 
   const closeActivity = () => {
     setIsActivityOpen(false);
-    setActivityProfileId(null);
     setActivityData(null);
   };
 

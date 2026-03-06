@@ -40,25 +40,39 @@ const ITEMS_PER_PAGE = 8;
 
 type SortOrder = "recent" | "oldest";
 
-function normalizeImage(row: Record<string, any>): ImageRow {
-  const id = row?.id ? String(row.id) : "";
-  const url = row?.url ?? row?.image_url ?? null;
-  const created = row?.created_datetime_utc ?? row?.created_at ?? null;
-  const additional = row?.additional_context ?? null;
-  const description = row?.image_description ?? row?.description ?? null;
-  const celebrity = row?.celebrity_recognition ?? row?.celebrity ?? null;
-  const profileId = row?.profile_id ?? null;
-  const isCommon =
-    typeof row?.is_common_use === "boolean" ? row.is_common_use : null;
-  const isPublic =
-    typeof row?.is_public === "boolean"
-      ? row.is_public
-      : typeof row?.is_publicly_visible === "boolean"
-        ? row.is_publicly_visible
+function normalizeImage(row: Record<string, unknown>): ImageRow {
+  const rawId = row["id"];
+  const id =
+    typeof rawId === "string"
+      ? rawId
+      : rawId != null
+        ? String(rawId)
+        : "";
+  const rawUrl = row["url"] ?? row["image_url"];
+  const url = typeof rawUrl === "string" ? rawUrl : null;
+  const rawCreated = row["created_datetime_utc"] ?? row["created_at"];
+  const created = typeof rawCreated === "string" ? rawCreated : null;
+  const rawAdditional = row["additional_context"];
+  const additional = typeof rawAdditional === "string" ? rawAdditional : null;
+  const rawDescription = row["image_description"] ?? row["description"];
+  const description =
+    typeof rawDescription === "string" ? rawDescription : null;
+  const rawCelebrity = row["celebrity_recognition"] ?? row["celebrity"];
+  const celebrity = typeof rawCelebrity === "string" ? rawCelebrity : null;
+  const rawProfileId = row["profile_id"];
+  const profileId =
+    typeof rawProfileId === "string"
+      ? rawProfileId
+      : rawProfileId != null
+        ? String(rawProfileId)
         : null;
+  const rawIsCommon = row["is_common_use"];
+  const isCommon = typeof rawIsCommon === "boolean" ? rawIsCommon : null;
+  const rawIsPublic = row["is_public"] ?? row["is_publicly_visible"];
+  const isPublic = typeof rawIsPublic === "boolean" ? rawIsPublic : null;
   const categoryRaw =
-    row?.common_use_category_id ?? row?.category_id ?? row?.category ?? null;
-  const categoryId = categoryRaw ? String(categoryRaw) : null;
+    row["common_use_category_id"] ?? row["category_id"] ?? row["category"];
+  const categoryId = categoryRaw != null ? String(categoryRaw) : null;
 
   return {
     id,
@@ -107,9 +121,16 @@ function ImageTile({ image, onSelect }: ImageTileProps) {
   };
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(image)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(image);
+        }
+      }}
       className="group relative h-full w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 text-left shadow-[0_12px_28px_rgba(0,0,0,0.35)] transition hover:border-zinc-600"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-900/60 to-black/30" />
@@ -142,7 +163,7 @@ function ImageTile({ image, onSelect }: ImageTileProps) {
       <div className="absolute inset-x-3 bottom-3 z-20 rounded-full border border-zinc-700/60 bg-black/70 px-3 py-1 text-[10px] text-zinc-200">
         {formatTimestamp(image.created_datetime_utc)}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -185,7 +206,6 @@ export default function ImagesPage() {
   const [images, setImages] = useState<ImageRow[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [imageIdQuery, setImageIdQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
@@ -243,7 +263,10 @@ export default function ImagesPage() {
     setIsLoading(true);
     setErrorMessage(null);
 
-    const { data, error } = await supabase.from("images").select("*");
+    const { data, error } = await supabase
+      .from("images")
+      .select("*")
+      .order("created_datetime_utc", { ascending: false });
 
     if (error) {
       setImages([]);
@@ -253,7 +276,7 @@ export default function ImagesPage() {
     }
 
     const normalized = (data ?? [])
-      .map((row) => normalizeImage(row as Record<string, any>))
+      .map((row) => normalizeImage(row as Record<string, unknown>))
       .filter((image) => image.id.length > 0)
       .sort((a, b) => {
         const aTime = a.created_datetime_utc
@@ -274,30 +297,6 @@ export default function ImagesPage() {
       fetchImages();
     });
   }, [fetchImages]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [sortOrder, debouncedQuery]);
-
-  useEffect(() => {
-    const timer = setTimeout(
-      () => setDebouncedQuery(imageIdQuery.trim()),
-      200
-    );
-    return () => clearTimeout(timer);
-  }, [imageIdQuery]);
-
-  useEffect(() => {
-    setDraftDescription(selectedImage?.image_description ?? "");
-    setDraftCelebrity(selectedImage?.celebrity_recognition ?? "");
-    setDraftContext(selectedImage?.additional_context ?? "");
-    setSaveStatus({
-      description: null,
-      celebrity: null,
-      context: null,
-      visibility: null,
-    });
-  }, [selectedImage]);
 
   useEffect(() => {
     if (!imageDialogOpen) return;
@@ -495,6 +494,15 @@ export default function ImagesPage() {
       }
 
       setSelectedImage(selected);
+      setDraftDescription(selected.image_description ?? "");
+      setDraftCelebrity(selected.celebrity_recognition ?? "");
+      setDraftContext(selected.additional_context ?? "");
+      setSaveStatus({
+        description: null,
+        celebrity: null,
+        context: null,
+        visibility: null,
+      });
       setImageDialogOpen(true);
 
       const { data: captionsData } = await supabase
@@ -530,14 +538,14 @@ export default function ImagesPage() {
         : 0;
       return sortOrder === "recent" ? bTime - aTime : aTime - bTime;
     });
-    const q = debouncedQuery.toLowerCase();
+    const q = imageIdQuery.trim().toLowerCase();
     if (!q) return sorted;
     return sorted.filter((image) => image.id.toLowerCase().includes(q));
-  }, [images, sortOrder, debouncedQuery]);
+  }, [images, sortOrder, imageIdQuery]);
 
   const clearSearch = () => {
     setImageIdQuery("");
-    setDebouncedQuery("");
+    setCurrentPage(1);
     inputRef.current?.focus();
   };
 
@@ -595,7 +603,7 @@ export default function ImagesPage() {
           </p>
         </header>
 
-        <section className="grid h-[75vh] grid-rows-[auto_1fr_auto] gap-3 rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-950/90 to-zinc-900/40 p-3 text-sm text-zinc-300 shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
+        <section className="grid h-[80vh] grid-rows-[auto_1fr_auto] gap-3 rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-950/90 to-zinc-900/40 p-3 text-sm text-zinc-300 shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -608,9 +616,10 @@ export default function ImagesPage() {
             <div className="relative">
               <select
                 value={sortOrder}
-                onChange={(event) =>
-                  setSortOrder(event.target.value as SortOrder)
-                }
+                onChange={(event) => {
+                  setSortOrder(event.target.value as SortOrder);
+                  setCurrentPage(1);
+                }}
                 className="appearance-none rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 pr-10 text-xs text-zinc-200"
               >
                 <option value="recent">Most Recent</option>
@@ -639,7 +648,10 @@ export default function ImagesPage() {
               <input
                 ref={inputRef}
                 value={imageIdQuery}
-                onChange={(event) => setImageIdQuery(event.target.value)}
+                onChange={(event) => {
+                  setImageIdQuery(event.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Search by Image ID"
                 className="w-full bg-transparent text-xs text-zinc-200 outline-none placeholder:text-zinc-500"
               />
