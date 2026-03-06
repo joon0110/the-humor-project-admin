@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type CaptionRequestRow = {
   id: string | number;
@@ -64,21 +65,29 @@ export default function CaptionRequestsTable({
   rows,
   hasError,
 }: CaptionRequestsTableProps) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRequest, setSelectedRequest] =
     useState<CaptionRequestRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [localRows, setLocalRows] = useState(rows);
+
+  useEffect(() => {
+    setLocalRows(rows);
+  }, [rows]);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return rows;
+    if (!q) return localRows;
     const matches = (value: string | number | null) =>
       String(value ?? "").toLowerCase().includes(q);
-    return rows.filter(
+    return localRows.filter(
       (row) =>
         matches(row.id) || matches(row.image_id) || matches(row.profile_id)
     );
-  }, [rows, searchQuery]);
+  }, [localRows, searchQuery]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
@@ -96,6 +105,7 @@ export default function CaptionRequestsTable({
 
   const closeDialog = () => {
     setSelectedRequest(null);
+    setDeleteError(null);
   };
 
   const selectedImageUrl = selectedRequest?.images?.url ?? null;
@@ -104,6 +114,36 @@ export default function CaptionRequestsTable({
     : "Unknown User";
   const selectedEmail = selectedRequest?.profiles?.email ?? "—";
   const selectedNotes = selectedRequest ? getImageNotes(selectedRequest) : null;
+
+  const handleDeleteRequest = useCallback(
+    async (requestId: string | number) => {
+      const confirmed = window.confirm(
+        "Are you sure you want to delete this caption request?"
+      );
+      if (!confirmed) return;
+
+      setIsDeleting(true);
+      setDeleteError(null);
+
+      const { error } = await supabase
+        .from("caption_requests")
+        .delete()
+        .eq("id", requestId);
+
+      if (error) {
+        setDeleteError("Failed to delete caption request.");
+        setIsDeleting(false);
+        return;
+      }
+
+      setLocalRows((prev) =>
+        prev.filter((row) => String(row.id) !== String(requestId))
+      );
+      setSelectedRequest(null);
+      setIsDeleting(false);
+    },
+    [supabase]
+  );
 
   return (
     <section className="space-y-4 rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-950/90 to-zinc-900/40 p-4 text-sm text-zinc-300 shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
@@ -159,11 +199,15 @@ export default function CaptionRequestsTable({
               key={String(request.id)}
               role="button"
               tabIndex={0}
-              onClick={() => setSelectedRequest(request)}
+              onClick={() => {
+                setSelectedRequest(request);
+                setDeleteError(null);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   setSelectedRequest(request);
+                  setDeleteError(null);
                 }
               }}
               className="grid cursor-pointer grid-cols-[0.7fr_1fr_1.6fr_1.4fr] gap-4 px-4 py-4 text-sm text-zinc-200 transition hover:bg-zinc-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
@@ -259,17 +303,49 @@ export default function CaptionRequestsTable({
                   Caption Request ID: {selectedRequest.id}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={closeDialog}
-                className="rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs text-zinc-200"
-              >
-                Back to Requests
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteRequest(selectedRequest.id)
+                  }
+                  disabled={isDeleting}
+                  className="rounded-full border border-red-900/40 bg-red-950/40 px-3 py-2 text-xs text-red-200 disabled:opacity-60"
+                  aria-label="Delete request"
+                  title="Delete request"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 7h12M9.5 7l.5-2h4l.5 2M9 7v10m6-10v10M8 7v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={closeDialog}
+                  className="rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs text-zinc-200"
+                >
+                  Back to Requests
+                </button>
+              </div>
             </div>
 
             <div className="h-[calc(88vh-88px)] overflow-y-auto px-6 py-6">
               <div className="space-y-6">
+                {deleteError && (
+                  <div className="rounded-xl border border-red-900/40 bg-red-950/40 p-3 text-xs text-red-200">
+                    {deleteError}
+                  </div>
+                )}
                 <div className="rounded-2xl border border-zinc-800 bg-black/40 p-4">
                   <div className="grid gap-3 text-sm text-zinc-300">
                     <div className="grid grid-cols-[140px_1fr] items-start gap-4">
