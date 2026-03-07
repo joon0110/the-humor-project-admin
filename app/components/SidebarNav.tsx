@@ -35,11 +35,37 @@ const NAV_ITEMS = [
       },
     ],
   },
-  { href: "/humor", label: "Humor", key: "humor" },
-  { href: "/llm", label: "LLM", key: "llm" },
+  {
+    href: "/humor",
+    label: "Humor",
+    key: "humor",
+    children: [
+      { href: "/humor", label: "Humor Flavors", key: "humor-flavors" },
+      { href: "/humor/mix", label: "Humor Mix", key: "humor-mix" },
+    ],
+  },
+  {
+    href: "/llm",
+    label: "LLM",
+    key: "llm",
+    children: [
+      { href: "/llm", label: "LLM Models", key: "llm-models" },
+      { href: "/llm/providers", label: "LLM Providers", key: "llm-providers" },
+      {
+        href: "/llm/prompt-chains",
+        label: "LLM Prompt Chains",
+        key: "llm-prompt-chains",
+      },
+      { href: "/llm/responses", label: "LLM Responses", key: "llm-responses" },
+    ],
+  },
   { href: "/terms", label: "Terms", key: "terms" },
   { href: "/domains", label: "Domains", key: "domains" },
-  { href: "/bug-report", label: "Bug Report", key: "bug-report" },
+  {
+    href: "/bug-report",
+    label: "Whitelisted E-mail Addresses",
+    key: "bug-report",
+  },
 ] as const;
 
 type SidebarNavProps = {
@@ -64,9 +90,21 @@ export default function SidebarNav({
     [pathname]
   );
   const [isCaptionsOpen, setIsCaptionsOpen] = useState(isCaptionsRoute);
+  const isHumorRoute = useMemo(
+    () => pathname === "/humor" || pathname.startsWith("/humor/"),
+    [pathname]
+  );
+  const [isHumorOpen, setIsHumorOpen] = useState(isHumorRoute);
+  const isLlmRoute = useMemo(
+    () => pathname === "/llm" || pathname.startsWith("/llm/"),
+    [pathname]
+  );
+  const [isLlmOpen, setIsLlmOpen] = useState(isLlmRoute);
 
   const imagesMenuOpen = isImagesRoute || isImagesOpen;
   const captionsMenuOpen = isCaptionsRoute || isCaptionsOpen;
+  const humorMenuOpen = isHumorRoute || isHumorOpen;
+  const llmMenuOpen = isLlmRoute || isLlmOpen;
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">
@@ -76,28 +114,58 @@ export default function SidebarNav({
             const isActive = item.key === activeKey;
             if ("children" in item) {
               const isImagesMenu = item.key === "images";
+              const isHumorMenu = item.key === "humor";
+              const isLlmMenu = item.key === "llm";
               const childActive = isImagesMenu
                 ? pathname === "/images"
                   ? "images-list"
                   : pathname.startsWith("/images/upload")
                     ? "images-upload"
                     : null
-                : pathname === "/captions"
-                  ? "captions-list"
-                  : pathname.startsWith("/captions/requests")
-                    ? "captions-requests"
-                    : pathname.startsWith("/captions/examples")
-                      ? "captions-examples"
-                      : null;
+                : isHumorMenu
+                  ? pathname === "/humor"
+                    ? "humor-flavors"
+                    : pathname.startsWith("/humor/mix")
+                      ? "humor-mix"
+                      : null
+                  : isLlmMenu
+                    ? pathname === "/llm"
+                      ? "llm-models"
+                      : pathname.startsWith("/llm/providers")
+                        ? "llm-providers"
+                        : pathname.startsWith("/llm/prompt-chains")
+                          ? "llm-prompt-chains"
+                          : pathname.startsWith("/llm/responses")
+                            ? "llm-responses"
+                            : null
+                  : pathname === "/captions"
+                    ? "captions-list"
+                    : pathname.startsWith("/captions/requests")
+                      ? "captions-requests"
+                      : pathname.startsWith("/captions/examples")
+                        ? "captions-examples"
+                        : null;
               const isOpen = isImagesMenu
                 ? imagesMenuOpen
-                : captionsMenuOpen;
+                : isHumorMenu
+                  ? humorMenuOpen
+                  : isLlmMenu
+                    ? llmMenuOpen
+                  : captionsMenuOpen;
               const setOpen = isImagesMenu
                 ? setIsImagesOpen
-                : setIsCaptionsOpen;
+                : isHumorMenu
+                  ? setIsHumorOpen
+                  : isLlmMenu
+                    ? setIsLlmOpen
+                  : setIsCaptionsOpen;
               const isRouteActive = isImagesMenu
                 ? isImagesRoute
-                : isCaptionsRoute;
+                : isHumorMenu
+                  ? isHumorRoute
+                  : isLlmMenu
+                    ? isLlmRoute
+                  : isCaptionsRoute;
 
               return (
                 <div key={item.key} className="space-y-2">

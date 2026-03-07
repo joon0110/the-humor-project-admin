@@ -14,7 +14,9 @@ export default async function HumorPage() {
     <SidebarNav activeKey="humor" displayName={displayName}>
       <div className="space-y-6">
         <header className="space-y-2">
-          <h1 className="text-4xl font-semibold tracking-tight">Humor</h1>
+          <h1 className="text-4xl font-semibold tracking-tight">
+            Humor Flavors
+          </h1>
         </header>
 
         <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-sm text-zinc-300">

@@ -3,7 +3,7 @@ import SidebarNav from "@/app/components/SidebarNav";
 
 export const dynamic = "force-dynamic";
 
-export default async function LlmPage() {
+export default async function LlmPromptChainsPage() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
   const email = data.user?.email ?? "";
@@ -14,11 +14,13 @@ export default async function LlmPage() {
     <SidebarNav activeKey="llm" displayName={displayName}>
       <div className="space-y-6">
         <header className="space-y-2">
-          <h1 className="text-4xl font-semibold tracking-tight">LLM Models</h1>
+          <h1 className="text-4xl font-semibold tracking-tight">
+            LLM Prompt Chains
+          </h1>
         </header>
 
         <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-sm text-zinc-300">
-          LLM configuration will go here.
+          LLM prompt chain settings will go here.
         </section>
       </div>
     </SidebarNav>
