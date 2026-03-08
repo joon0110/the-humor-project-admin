@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import SidebarNav from "@/app/components/SidebarNav";
+import LlmProvidersManager from "@/app/llm/LlmProvidersManager";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,19 @@ export default async function LlmProvidersPage() {
   const displayName =
     data.user?.user_metadata?.full_name || email || "Account";
 
+  const { data: providers, error } = await supabase
+    .from("llm_providers")
+    .select("*")
+    .order("id", { ascending: true })
+    .limit(1000);
+
+  const rows = (providers ?? []) as {
+    id: string | number;
+    name: string | null;
+    created_datetime_utc?: string | null;
+    created_at?: string | null;
+  }[];
+
   return (
     <SidebarNav activeKey="llm" displayName={displayName}>
       <div className="space-y-6">
@@ -17,11 +31,14 @@ export default async function LlmProvidersPage() {
           <h1 className="text-4xl font-semibold tracking-tight">
             LLM Providers
           </h1>
+          <p className="text-sm text-zinc-400">
+            All registered providers in the system.
+          </p>
         </header>
 
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-sm text-zinc-300">
-          LLM provider settings will go here.
-        </section>
+        <div className="h-px w-full bg-zinc-800/60" />
+
+        <LlmProvidersManager rows={rows} hasError={Boolean(error)} />
       </div>
     </SidebarNav>
   );
