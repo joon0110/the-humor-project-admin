@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import SidebarNav from "@/app/components/SidebarNav";
+import LlmPromptChainsTable from "@/app/llm/LlmPromptChainsTable";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,29 @@ export default async function LlmPromptChainsPage() {
   const displayName =
     data.user?.user_metadata?.full_name || email || "Account";
 
+  const pageSize = 1000;
+  const allChains: Record<string, unknown>[] = [];
+  let error: unknown = null;
+
+  for (let from = 0; from < 20000; from += pageSize) {
+    const { data: batch, error: batchError } = await supabase
+      .from("llm_prompt_chains")
+      .select("*")
+      .range(from, from + pageSize - 1);
+
+    if (batchError) {
+      error = batchError;
+      break;
+    }
+
+    if (!batch || batch.length === 0) break;
+    allChains.push(...(batch as Record<string, unknown>[]));
+
+    if (batch.length < pageSize) break;
+  }
+
+  const rows = allChains;
+
   return (
     <SidebarNav activeKey="llm" displayName={displayName}>
       <div className="space-y-6">
@@ -17,11 +41,12 @@ export default async function LlmPromptChainsPage() {
           <h1 className="text-4xl font-semibold tracking-tight">
             LLM Prompt Chains
           </h1>
+          <p className="text-sm text-zinc-400">
+            Review prompt chains and jump into their generated outputs.
+          </p>
         </header>
 
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-sm text-zinc-300">
-          LLM prompt chain settings will go here.
-        </section>
+        <LlmPromptChainsTable rows={rows} hasError={Boolean(error)} />
       </div>
     </SidebarNav>
   );

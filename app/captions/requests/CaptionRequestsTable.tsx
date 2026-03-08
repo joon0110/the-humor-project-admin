@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type CaptionRequestRow = {
@@ -65,6 +66,7 @@ export default function CaptionRequestsTable({
   rows,
   hasError,
 }: CaptionRequestsTableProps) {
+  const searchParams = useSearchParams();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,6 +79,14 @@ export default function CaptionRequestsTable({
   useEffect(() => {
     setLocalRows(rows);
   }, [rows]);
+
+  useEffect(() => {
+    const initialSearch = searchParams.get("search") ?? "";
+    if (initialSearch && searchQuery === "") {
+      setSearchQuery(initialSearch);
+      setCurrentPage(1);
+    }
+  }, [searchParams, searchQuery]);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
