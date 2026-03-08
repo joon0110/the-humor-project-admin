@@ -62,9 +62,9 @@ const NAV_ITEMS = [
   { href: "/terms", label: "Terms", key: "terms" },
   { href: "/domains", label: "Domains", key: "domains" },
   {
-    href: "/bug-report",
+    href: "/whitelisted",
     label: "Whitelisted E-mail Addresses",
-    key: "bug-report",
+    key: "whitelisted",
   },
 ] as const;
 
