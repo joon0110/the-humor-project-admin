@@ -507,6 +507,7 @@ export default function HumorMixManager({
                     }`}
                     onClick={() => {
                       setSelectedFlavor(flavor);
+                      setCaptionCount("1");
                       setErrorMessage(null);
                     }}
                   >
