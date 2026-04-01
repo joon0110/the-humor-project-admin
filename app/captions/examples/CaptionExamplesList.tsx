@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type CaptionExampleRow = {
   id: string | number;
@@ -130,6 +131,13 @@ export default function CaptionExamplesList({
       setIsSaving(true);
       setErrorMessage(null);
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage("You must be signed in to save caption examples.");
+        setIsSaving(false);
+        return;
+      }
+
       const captionKey = getCaptionKey(row);
       const descriptionKey = getDescriptionKey(row);
       const explanationKey = getExplanationKey(row);
@@ -138,6 +146,7 @@ export default function CaptionExamplesList({
         [captionKey]: draftCaption.trim() || null,
         [descriptionKey]: draftDescription.trim() || null,
         [explanationKey]: draftExplanation.trim() || null,
+        modified_by_user_id: userId,
       };
 
       const { error } = await supabase
@@ -206,10 +215,19 @@ export default function CaptionExamplesList({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage("You must be signed in to create caption examples.");
+      setIsCreating(false);
+      return;
+    }
+
     const payload = {
       caption: createCaption.trim() || null,
       image_description: createDescription.trim() || null,
       explanation: createExplanation.trim() || null,
+      created_by_user_id: userId,
+      modified_by_user_id: userId,
     };
 
     const { data, error } = await supabase

@@ -30,7 +30,7 @@ export async function PATCH(
     is_matrix_admin?: boolean;
   };
 
-  const updates: Record<string, boolean> = {};
+  const updates: Record<string, boolean | string> = {};
   if (typeof body.is_superadmin === "boolean") {
     updates.is_superadmin = body.is_superadmin;
   }
@@ -41,6 +41,8 @@ export async function PATCH(
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
   }
+
+  updates.modified_by_user_id = user.id;
 
   const { id } = await params;
   const { data, error } = await supabase

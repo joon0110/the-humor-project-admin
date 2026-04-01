@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type LlmProviderRow = {
   id: string | number;
@@ -97,9 +98,20 @@ export default function LlmProvidersManager({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage("You must be signed in to add a provider.");
+      setIsCreating(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .insert({ name: normalized })
+      .insert({
+        name: normalized,
+        created_by_user_id: userId,
+        modified_by_user_id: userId,
+      })
       .select("*")
       .single();
 
@@ -126,9 +138,16 @@ export default function LlmProvidersManager({
       setSavingId(row.id);
       setErrorMessage(null);
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage("You must be signed in to save providers.");
+        setSavingId(null);
+        return;
+      }
+
       const { error } = await supabase
         .from(TABLE_NAME)
-        .update({ name: normalized })
+        .update({ name: normalized, modified_by_user_id: userId })
         .eq("id", row.id);
 
       if (error) {

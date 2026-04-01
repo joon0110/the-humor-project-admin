@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type TermRow = Record<string, unknown>;
 
@@ -256,8 +257,17 @@ export default function TermsManager({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage("You must be signed in to add terms.");
+      setIsCreating(false);
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       [nameKey]: normalizedName,
+      created_by_user_id: userId,
+      modified_by_user_id: userId,
     };
 
     const typeValue = normalizeText(newType);
@@ -324,6 +334,13 @@ export default function TermsManager({
       setSavingKey(rowKey);
       setErrorMessage(null);
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage("You must be signed in to save terms.");
+        setSavingKey(null);
+        return;
+      }
+
       const payload: Record<string, unknown> = {
         [nameKey]: normalizedName,
         [typeKey]: coerceTermTypeValue(
@@ -334,6 +351,7 @@ export default function TermsManager({
         [priorityKey]: coercePriority(draftPriority),
         [definitionKey]: normalizeText(draftDefinition),
         [exampleKey]: normalizeText(draftExample),
+        modified_by_user_id: userId,
       };
 
       const { error } = await supabase

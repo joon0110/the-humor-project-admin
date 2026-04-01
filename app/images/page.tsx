@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import SidebarNav from "@/app/components/SidebarNav";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -322,9 +323,20 @@ export default function ImagesPage() {
       setIsSavingField((prev) => ({ ...prev, [key]: true }));
       setSaveStatus((prev) => ({ ...prev, [key]: null }));
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setSaveStatus((prev) => ({
+          ...prev,
+          [key]: "You must be signed in.",
+        }));
+        setIsSavingField((prev) => ({ ...prev, [key]: false }));
+        return false;
+      }
+
       const trimmed = value.trim();
       const payload = {
         [field]: trimmed.length > 0 ? trimmed : null,
+        modified_by_user_id: userId,
       } as Record<string, string | null>;
 
       const { error } = await supabase
@@ -364,9 +376,19 @@ export default function ImagesPage() {
       setIsSavingField((prev) => ({ ...prev, visibility: true }));
       setSaveStatus((prev) => ({ ...prev, visibility: null }));
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setSaveStatus((prev) => ({
+          ...prev,
+          visibility: "You must be signed in.",
+        }));
+        setIsSavingField((prev) => ({ ...prev, visibility: false }));
+        return false;
+      }
+
       const { error } = await supabase
         .from("images")
-        .update({ [field]: value })
+        .update({ [field]: value, modified_by_user_id: userId })
         .eq("id", imageId);
 
       if (error) {

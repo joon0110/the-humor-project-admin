@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type HumorFlavorRow = Record<string, unknown>;
 type HumorMixRow = Record<string, unknown>;
@@ -258,9 +259,21 @@ export default function HumorMixManager({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage("You must be signed in to update the mix.");
+      setIsCreating(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from(mixTableName)
-      .insert({ [flavorIdKey]: flavorId, [captionCountKey]: parsedCount })
+      .insert({
+        [flavorIdKey]: flavorId,
+        [captionCountKey]: parsedCount,
+        created_by_user_id: userId,
+        modified_by_user_id: userId,
+      })
       .select("*")
       .single();
 
@@ -309,9 +322,16 @@ export default function HumorMixManager({
       setIsSaving(true);
       setErrorMessage(null);
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage("You must be signed in to update the mix.");
+        setIsSaving(false);
+        return;
+      }
+
       const { error } = await supabase
         .from(mixTableName)
-        .update({ [captionCountKey]: parsed })
+        .update({ [captionCountKey]: parsed, modified_by_user_id: userId })
         .eq(identity.key, identity.value);
 
       if (error) {

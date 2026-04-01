@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type LlmModelRow = {
   id: string | number;
@@ -154,11 +155,20 @@ export default function LlmModelsManager({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage("You must be signed in to add a model.");
+      setIsCreating(false);
+      return;
+    }
+
     const payload = {
       name: normalizedName,
       llm_provider_id: normalizeOptionalNumber(newProviderId),
       provider_model_id: normalizeText(newProviderModelId),
       is_temperature_supported: newTemperatureSupported,
+      created_by_user_id: userId,
+      modified_by_user_id: userId,
     };
 
     const { data, error } = await supabase
@@ -193,11 +203,19 @@ export default function LlmModelsManager({
       setSavingId(row.id);
       setErrorMessage(null);
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage("You must be signed in to save models.");
+        setSavingId(null);
+        return;
+      }
+
       const payload = {
         name: normalizedName,
         llm_provider_id: normalizeOptionalNumber(draftProviderId),
         provider_model_id: normalizeText(draftProviderModelId),
         is_temperature_supported: draftTemperatureSupported,
+        modified_by_user_id: userId,
       };
 
       const { error } = await supabase

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type AllowedDomainRow = {
   id: string | number;
@@ -90,9 +91,20 @@ export default function AllowedDomainsManager({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage("You must be signed in to add domains.");
+      setIsCreating(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .insert({ apex_domain: normalized })
+      .insert({
+        apex_domain: normalized,
+        created_by_user_id: userId,
+        modified_by_user_id: userId,
+      })
       .select("*")
       .single();
 
@@ -135,10 +147,17 @@ export default function AllowedDomainsManager({
       setIsSaving(true);
       setErrorMessage(null);
 
-    const { error } = await supabase
-      .from(TABLE_NAME)
-      .update({ apex_domain: normalized })
-      .eq("id", row.id);
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage("You must be signed in to save domains.");
+        setIsSaving(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from(TABLE_NAME)
+        .update({ apex_domain: normalized, modified_by_user_id: userId })
+        .eq("id", row.id);
 
       if (error) {
         setErrorMessage("Failed to save domain.");

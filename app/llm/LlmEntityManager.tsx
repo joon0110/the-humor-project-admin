@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type LlmEntityRow = Record<string, unknown>;
 
@@ -17,10 +18,12 @@ const READ_ONLY_KEYS = new Set([
   ...ID_KEYS,
   "created_at",
   "created_datetime_utc",
+  "created_by_user_id",
   "created_on",
   "created_time",
   "updated_at",
   "updated_datetime_utc",
+  "modified_by_user_id",
   "modified_datetime_utc",
 ]);
 const DISPLAY_KEYS = [
@@ -158,9 +161,22 @@ export default function LlmEntityManager({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage(`You must be signed in to add ${entityLabel}.`);
+      setIsCreating(false);
+      return;
+    }
+
+    const payload = {
+      ...parsed.value,
+      created_by_user_id: userId,
+      modified_by_user_id: userId,
+    };
+
     const { data, error } = await supabase
       .from(tableName)
-      .insert(parsed.value)
+      .insert(payload)
       .select("*")
       .single();
 
@@ -194,6 +210,14 @@ export default function LlmEntityManager({
         setErrorMessage("No editable fields found in the payload.");
         return;
       }
+
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage(`You must be signed in to save ${entityLabel}.`);
+        return;
+      }
+
+      updatePayload.modified_by_user_id = userId;
 
       const rowKey = `${rowId.key}:${String(rowId.value)}`;
       setSavingRowKey(rowKey);

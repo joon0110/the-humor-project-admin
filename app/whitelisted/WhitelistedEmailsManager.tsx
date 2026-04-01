@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 type WhitelistedEmailRow = {
   id: string | number;
@@ -88,9 +89,20 @@ export default function WhitelistedEmailsManager({
     setIsCreating(true);
     setErrorMessage(null);
 
+    const userId = await getCurrentUserId(supabase);
+    if (!userId) {
+      setErrorMessage("You must be signed in to add email addresses.");
+      setIsCreating(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .insert({ email_address: normalized })
+      .insert({
+        email_address: normalized,
+        created_by_user_id: userId,
+        modified_by_user_id: userId,
+      })
       .select("*")
       .single();
 
@@ -133,9 +145,16 @@ export default function WhitelistedEmailsManager({
       setIsSaving(true);
       setErrorMessage(null);
 
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setErrorMessage("You must be signed in to save email addresses.");
+        setIsSaving(false);
+        return;
+      }
+
       const { error } = await supabase
         .from(TABLE_NAME)
-        .update({ email_address: normalized })
+        .update({ email_address: normalized, modified_by_user_id: userId })
         .eq("id", row.id);
 
       if (error) {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import SidebarNav from "@/app/components/SidebarNav";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getCurrentUserId } from "@/lib/supabase/audit";
 
 const BASE_URL = "https://api.almostcrackd.ai";
 const SUPPORTED_TYPES = [
@@ -185,9 +186,13 @@ export default function UploadPage() {
       }
 
       if (isPublic) {
+        const userId = await getCurrentUserId(supabase);
+        if (!userId) {
+          throw new Error("You must be signed in to update image visibility.");
+        }
         await supabase
           .from("images")
-          .update({ is_public: true })
+          .update({ is_public: true, modified_by_user_id: userId })
           .eq("id", step3.imageId);
       }
 
