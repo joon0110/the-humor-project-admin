@@ -38,13 +38,59 @@ export default async function CaptionsPage() {
 
   const { data: captions, error } = await supabase
     .from("captions")
-    .select(
-      "*, images ( url ), profiles ( first_name, last_name, email )"
-    )
+    .select("*")
     .order("created_datetime_utc", { ascending: false })
     .limit(1000);
 
   const baseRows = (captions ?? []) as CaptionRow[];
+  const imageIds = Array.from(
+    new Set(
+      baseRows
+        .map((row) => row.image_id)
+        .filter((id): id is string => Boolean(id))
+        .map(String)
+    )
+  );
+  const profileIds = Array.from(
+    new Set(
+      baseRows
+        .map((row) => row.profile_id)
+        .filter((id): id is string => Boolean(id))
+        .map(String)
+    )
+  );
+
+  let imageMap = new Map<string, string | null>();
+  if (imageIds.length > 0) {
+    const { data: imagesData } = await supabase
+      .from("images")
+      .select("id, url")
+      .in("id", imageIds);
+    imageMap = new Map(
+      (imagesData ?? []).map((row) => [String(row.id), row.url ?? null])
+    );
+  }
+
+  let profileMap = new Map<
+    string,
+    { first_name: string | null; last_name: string | null; email: string | null }
+  >();
+  if (profileIds.length > 0) {
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .in("id", profileIds);
+    profileMap = new Map(
+      (profilesData ?? []).map((row) => [
+        String(row.id),
+        {
+          first_name: row.first_name ?? null,
+          last_name: row.last_name ?? null,
+          email: row.email ?? null,
+        },
+      ])
+    );
+  }
   const captionIds = baseRows.map((row) => row.id);
   let shareCountMap = new Map<string, number>();
 
@@ -61,11 +107,24 @@ export default async function CaptionsPage() {
     }, new Map<string, number>());
   }
 
-  const rows = baseRows.map((row) => ({
-    ...row,
-    like_count: row.like_count ?? 0,
-    share_count: shareCountMap.get(row.id) ?? 0,
-  }));
+  const rows = baseRows.map((row) => {
+    const resolvedImageId = row.image_id ? String(row.image_id) : null;
+    const resolvedProfileId = row.profile_id ? String(row.profile_id) : null;
+    const imageUrl =
+      (resolvedImageId ? imageMap.get(resolvedImageId) ?? null : null) ??
+      row.image_url ??
+      null;
+
+    return {
+      ...row,
+      images: imageUrl ? { url: imageUrl } : null,
+      profiles: resolvedProfileId
+        ? profileMap.get(resolvedProfileId) ?? null
+        : null,
+      like_count: row.like_count ?? 0,
+      share_count: shareCountMap.get(row.id) ?? 0,
+    };
+  });
 
   return (
     <SidebarNav activeKey="captions" displayName={displayName}>

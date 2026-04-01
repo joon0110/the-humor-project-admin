@@ -10,6 +10,22 @@ function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 }
 
+function copyResponseCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach((cookie) => {
+    to.cookies.set(cookie);
+  });
+}
+
+function redirectWithCookies(
+  request: NextRequest,
+  response: NextResponse,
+  path: string
+) {
+  const redirect = NextResponse.redirect(new URL(path, request.url));
+  copyResponseCookies(response, redirect);
+  return redirect;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -49,12 +65,12 @@ export async function middleware(request: NextRequest) {
 
       if (!email || !fullName.trim()) {
         await supabase.auth.signOut();
-        return NextResponse.redirect(new URL("/login?error=profile", request.url));
+        return redirectWithCookies(request, response, "/login?error=profile");
       }
 
       if (!isAllowedEmailDomain(email)) {
         await supabase.auth.signOut();
-        return NextResponse.redirect(new URL("/login?error=domain", request.url));
+        return redirectWithCookies(request, response, "/login?error=domain");
       }
 
       const { data: profile, error: profileError } = await supabase
@@ -65,10 +81,10 @@ export async function middleware(request: NextRequest) {
 
       if (profileError || !profile?.is_superadmin) {
         await supabase.auth.signOut();
-        return NextResponse.redirect(new URL("/login?error=admin", request.url));
+        return redirectWithCookies(request, response, "/login?error=admin");
       }
 
-      return NextResponse.redirect(new URL("/overview", request.url));
+      return redirectWithCookies(request, response, "/overview");
     }
 
     return response;
@@ -99,7 +115,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return redirectWithCookies(request, response, "/login");
   }
 
   const { data } = await supabase.auth.getUser();
@@ -112,12 +128,12 @@ export async function middleware(request: NextRequest) {
 
   if (!email || !fullName.trim()) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?error=profile", request.url));
+    return redirectWithCookies(request, response, "/login?error=profile");
   }
 
   if (!isAllowedEmailDomain(email)) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?error=domain", request.url));
+    return redirectWithCookies(request, response, "/login?error=domain");
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -128,7 +144,7 @@ export async function middleware(request: NextRequest) {
 
   if (profileError || !profile?.is_superadmin) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?error=admin", request.url));
+    return redirectWithCookies(request, response, "/login?error=admin");
   }
 
   return response;

@@ -75,10 +75,94 @@ export default function CaptionRequestsTable({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [localRows, setLocalRows] = useState(rows);
+  const [imageUrlMap, setImageUrlMap] = useState<Record<string, string | null>>(
+    {}
+  );
 
   useEffect(() => {
     setLocalRows(rows);
   }, [rows]);
+
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(
+        rows
+          .map((row) => row.image_id)
+          .filter((id): id is string => Boolean(id))
+          .map(String)
+      )
+    );
+
+    if (ids.length === 0) {
+      return;
+    }
+
+    let isMounted = true;
+    const resolveImageUrl = (row: Record<string, unknown>) => {
+      const candidates = [
+        row["url"],
+        row["image_url"],
+        row["imageUrl"],
+        row["image"],
+        row["public_url"],
+        row["publicUrl"],
+        row["cdn_url"],
+        row["cdnUrl"],
+        row["storage_url"],
+        row["storageUrl"],
+      ];
+      const first = candidates.find((value) => typeof value === "string");
+      return typeof first === "string" ? first : null;
+    };
+
+    const loadImages = async () => {
+      const { data: imagesById } = await supabase
+        .from("images")
+        .select("*")
+        .in("id", ids);
+
+      let imagesData = imagesById ?? [];
+      if (imagesData.length < ids.length) {
+        const { data: imagesByImageId } = await supabase
+          .from("images")
+          .select("*")
+          .in("image_id", ids);
+        if (imagesByImageId) {
+          imagesData = [...imagesData, ...imagesByImageId];
+        }
+      }
+
+      if (!isMounted || imagesData.length === 0) {
+        return;
+      }
+
+      const nextMap = imagesData.reduce<Record<string, string | null>>(
+        (acc, row) => {
+          const url = resolveImageUrl(row as Record<string, unknown>);
+          const idValue = (row as { id?: unknown }).id;
+          const imageIdValue =
+            (row as { image_id?: unknown }).image_id ??
+            (row as { imageId?: unknown }).imageId;
+
+          if (idValue != null) {
+            acc[String(idValue)] = url;
+          }
+          if (imageIdValue != null) {
+            acc[String(imageIdValue)] = url;
+          }
+          return acc;
+        },
+        {}
+      );
+
+      setImageUrlMap((prev) => ({ ...prev, ...nextMap }));
+    };
+
+    loadImages();
+    return () => {
+      isMounted = false;
+    };
+  }, [rows, supabase]);
 
   useEffect(() => {
     const initialSearch = searchParams.get("search") ?? "";
@@ -118,7 +202,10 @@ export default function CaptionRequestsTable({
     setDeleteError(null);
   };
 
-  const selectedImageUrl = selectedRequest?.images?.url ?? null;
+  const selectedImageUrl =
+    (selectedRequest?.image_id
+      ? imageUrlMap[String(selectedRequest.image_id)] ?? null
+      : null) ?? selectedRequest?.images?.url ?? null;
   const selectedUserLabel = selectedRequest
     ? getUserLabel(selectedRequest.profiles)
     : "Unknown User";
@@ -225,10 +312,18 @@ export default function CaptionRequestsTable({
               <div className="text-sm text-zinc-100">{request.id}</div>
               <div className="flex items-center">
                 <div className="h-12 w-12 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
-                  {request.images?.url ? (
+                  {(
+                    (request.image_id
+                      ? imageUrlMap[String(request.image_id)] ?? null
+                      : null) ?? request.images?.url
+                  ) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={request.images.url}
+                      src={
+                        (request.image_id
+                          ? imageUrlMap[String(request.image_id)] ?? null
+                          : null) ?? request.images?.url ?? ""
+                      }
                       alt="Request"
                       className="h-full w-full object-cover"
                     />
