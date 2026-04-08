@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AccountMenu from "@/app/components/AccountMenu";
+import ThemeMenu from "@/app/components/ThemeMenu";
 
 const NAV_ITEMS = [
   { href: "/overview", label: "Overview", key: "overview" },
@@ -230,7 +231,8 @@ export default function SidebarNav({
           })}
         </nav>
 
-        <div className="mt-auto pb-2 pt-10">
+        <div className="mt-auto space-y-4 pb-2 pt-6">
+          <ThemeMenu />
           <AccountMenu displayName={displayName} />
         </div>
       </aside>
