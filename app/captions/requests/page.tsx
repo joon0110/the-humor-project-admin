@@ -4,6 +4,7 @@ import SidebarNav from "@/app/components/SidebarNav";
 import CaptionRequestsTable from "@/app/captions/requests/CaptionRequestsTable";
 
 export const dynamic = "force-dynamic";
+const IMAGE_QUERY_CHUNK_SIZE = 100;
 
 type CaptionRequestRow = {
   id: string | number;
@@ -20,6 +21,26 @@ type CaptionRequestRow = {
     email: string | null;
   } | null;
 };
+
+function pickFirstNonEmptyString(values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
+function chunkArray<T>(values: T[], chunkSize: number): T[][] {
+  if (values.length === 0) return [];
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
 
 export default async function CaptionRequestsPage() {
   const supabase = await createSupabaseServerClient();
@@ -56,24 +77,41 @@ export default async function CaptionRequestsPage() {
 
   let imageMap = new Map<string, string | null>();
   if (imageIds.length > 0) {
-    const { data: imagesById } = await dataClient
-      .from("images")
-      .select("*")
-      .in("id", imageIds);
-    let imagesData = imagesById ?? [];
+    const imageChunks = chunkArray(imageIds, IMAGE_QUERY_CHUNK_SIZE);
+    const mergedRows = new Map<string, Record<string, unknown>>();
 
-    if (imagesData.length < imageIds.length) {
-      const { data: imagesByImageId, error: imageIdError } = await dataClient
-        .from("images")
-        .select("*")
-        .in("image_id", imageIds);
-      if (!imageIdError && imagesByImageId) {
-        imagesData = [...imagesData, ...imagesByImageId];
+    for (const chunk of imageChunks) {
+      const [{ data: imagesById }, { data: imagesByImageId }] =
+        await Promise.all([
+          dataClient.from("images").select("*").in("id", chunk),
+          dataClient.from("images").select("*").in("image_id", chunk),
+        ]);
+
+      for (const row of imagesById ?? []) {
+        const typedRow = row as Record<string, unknown>;
+        const key =
+          (typedRow["id"] != null ? String(typedRow["id"]) : null) ??
+          (typedRow["image_id"] != null
+            ? String(typedRow["image_id"])
+            : null) ??
+          JSON.stringify(typedRow);
+        mergedRows.set(key, typedRow);
+      }
+      for (const row of imagesByImageId ?? []) {
+        const typedRow = row as Record<string, unknown>;
+        const key =
+          (typedRow["id"] != null ? String(typedRow["id"]) : null) ??
+          (typedRow["image_id"] != null
+            ? String(typedRow["image_id"])
+            : null) ??
+          JSON.stringify(typedRow);
+        mergedRows.set(key, typedRow);
       }
     }
+    const imagesData = Array.from(mergedRows.values());
 
-    const resolveImageUrl = (row: Record<string, unknown>) => {
-      const candidates = [
+    const resolveImageUrl = (row: Record<string, unknown>) =>
+      pickFirstNonEmptyString([
         row["url"],
         row["image_url"],
         row["imageUrl"],
@@ -84,19 +122,18 @@ export default async function CaptionRequestsPage() {
         row["cdnUrl"],
         row["storage_url"],
         row["storageUrl"],
-      ];
-      const first = candidates.find((value) => typeof value === "string");
-      return typeof first === "string" ? first : null;
-    };
+        row["signed_url"],
+        row["signedUrl"],
+        row["path"],
+        row["file_path"],
+      ]);
 
     imageMap = new Map(
       imagesData.flatMap((row) => {
-        const url = resolveImageUrl(row as Record<string, unknown>);
+        const url = resolveImageUrl(row);
         const entries: Array<[string, string | null]> = [];
-        const idValue = (row as { id?: unknown }).id;
-        const imageIdValue =
-          (row as { image_id?: unknown }).image_id ??
-          (row as { imageId?: unknown }).imageId;
+        const idValue = row["id"];
+        const imageIdValue = row["image_id"] ?? row["imageId"];
 
         if (idValue != null) {
           entries.push([String(idValue), url]);
@@ -134,11 +171,19 @@ export default async function CaptionRequestsPage() {
   const rows = baseRows.map((row) => {
     const resolvedImageId = row.image_id ? String(row.image_id) : null;
     const resolvedProfileId = row.profile_id ? String(row.profile_id) : null;
-    const directImageUrl =
-      row.image_url ?? row.imageUrl ?? row.image ?? null;
+    const directImageUrl = pickFirstNonEmptyString([
+      row.image_url,
+      row.imageUrl,
+      row.image,
+      (row as unknown as Record<string, unknown>)["url"],
+      (row as unknown as Record<string, unknown>)["public_url"],
+      (row as unknown as Record<string, unknown>)["cdn_url"],
+      (row as unknown as Record<string, unknown>)["storage_url"],
+      (row as unknown as Record<string, unknown>)["signed_url"],
+    ]);
     const imageUrl =
-      directImageUrl ??
-      (resolvedImageId ? imageMap.get(resolvedImageId) ?? null : null);
+      (resolvedImageId ? imageMap.get(resolvedImageId) ?? null : null) ??
+      directImageUrl;
 
     return {
       ...row,

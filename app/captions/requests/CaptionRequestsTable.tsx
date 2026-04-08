@@ -15,7 +15,21 @@ type CaptionRequestRow = {
   additional_context?: string | null;
   image_description?: string | null;
   prompt?: string | null;
-  images: { url: string | null } | null;
+  images:
+    | {
+        url?: string | null;
+        image_url?: string | null;
+        imageUrl?: string | null;
+        public_url?: string | null;
+        publicUrl?: string | null;
+        cdn_url?: string | null;
+        cdnUrl?: string | null;
+        storage_url?: string | null;
+        storageUrl?: string | null;
+        signed_url?: string | null;
+        signedUrl?: string | null;
+      }
+    | null;
   profiles: {
     first_name: string | null;
     last_name: string | null;
@@ -29,6 +43,27 @@ type CaptionRequestsTableProps = {
 };
 
 const PAGE_SIZE = 50;
+const IMAGE_QUERY_CHUNK_SIZE = 100;
+
+function pickFirstNonEmptyString(values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
+function chunkArray<T>(values: T[], chunkSize: number): T[][] {
+  if (values.length === 0) return [];
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
 
 function formatTimestamp(value: string | null) {
   if (!value) return "—";
@@ -60,6 +95,22 @@ function getImageNotes(row: CaptionRequestRow) {
     row.prompt ??
     null
   );
+}
+
+function getInlineImageUrl(row: CaptionRequestRow) {
+  return pickFirstNonEmptyString([
+    row.images?.url,
+    row.images?.image_url,
+    row.images?.imageUrl,
+    row.images?.public_url,
+    row.images?.publicUrl,
+    row.images?.cdn_url,
+    row.images?.cdnUrl,
+    row.images?.storage_url,
+    row.images?.storageUrl,
+    row.images?.signed_url,
+    row.images?.signedUrl,
+  ]);
 }
 
 export default function CaptionRequestsTable({
@@ -98,8 +149,8 @@ export default function CaptionRequestsTable({
     }
 
     let isMounted = true;
-    const resolveImageUrl = (row: Record<string, unknown>) => {
-      const candidates = [
+    const resolveImageUrl = (row: Record<string, unknown>) =>
+      pickFirstNonEmptyString([
         row["url"],
         row["image_url"],
         row["imageUrl"],
@@ -110,27 +161,45 @@ export default function CaptionRequestsTable({
         row["cdnUrl"],
         row["storage_url"],
         row["storageUrl"],
-      ];
-      const first = candidates.find((value) => typeof value === "string");
-      return typeof first === "string" ? first : null;
-    };
+        row["signed_url"],
+        row["signedUrl"],
+        row["path"],
+        row["file_path"],
+      ]);
 
     const loadImages = async () => {
-      const { data: imagesById } = await supabase
-        .from("images")
-        .select("*")
-        .in("id", ids);
+      const idChunks = chunkArray(ids, IMAGE_QUERY_CHUNK_SIZE);
+      const mergedRows = new Map<string, Record<string, unknown>>();
 
-      let imagesData = imagesById ?? [];
-      if (imagesData.length < ids.length) {
-        const { data: imagesByImageId } = await supabase
-          .from("images")
-          .select("*")
-          .in("image_id", ids);
-        if (imagesByImageId) {
-          imagesData = [...imagesData, ...imagesByImageId];
+      for (const chunk of idChunks) {
+        const [{ data: imagesById }, { data: imagesByImageId }] =
+          await Promise.all([
+            supabase.from("images").select("*").in("id", chunk),
+            supabase.from("images").select("*").in("image_id", chunk),
+          ]);
+
+        for (const row of imagesById ?? []) {
+          const typedRow = row as Record<string, unknown>;
+          const key =
+            (typedRow["id"] != null ? String(typedRow["id"]) : null) ??
+            (typedRow["image_id"] != null
+              ? String(typedRow["image_id"])
+              : null) ??
+            JSON.stringify(typedRow);
+          mergedRows.set(key, typedRow);
+        }
+        for (const row of imagesByImageId ?? []) {
+          const typedRow = row as Record<string, unknown>;
+          const key =
+            (typedRow["id"] != null ? String(typedRow["id"]) : null) ??
+            (typedRow["image_id"] != null
+              ? String(typedRow["image_id"])
+              : null) ??
+            JSON.stringify(typedRow);
+          mergedRows.set(key, typedRow);
         }
       }
+      const imagesData = Array.from(mergedRows.values());
 
       if (!isMounted || imagesData.length === 0) {
         return;
@@ -138,11 +207,9 @@ export default function CaptionRequestsTable({
 
       const nextMap = imagesData.reduce<Record<string, string | null>>(
         (acc, row) => {
-          const url = resolveImageUrl(row as Record<string, unknown>);
-          const idValue = (row as { id?: unknown }).id;
-          const imageIdValue =
-            (row as { image_id?: unknown }).image_id ??
-            (row as { imageId?: unknown }).imageId;
+          const url = resolveImageUrl(row);
+          const idValue = row["id"];
+          const imageIdValue = row["image_id"] ?? row["imageId"];
 
           if (idValue != null) {
             acc[String(idValue)] = url;
@@ -205,7 +272,8 @@ export default function CaptionRequestsTable({
   const selectedImageUrl =
     (selectedRequest?.image_id
       ? imageUrlMap[String(selectedRequest.image_id)] ?? null
-      : null) ?? selectedRequest?.images?.url ?? null;
+      : null) ??
+    (selectedRequest ? getInlineImageUrl(selectedRequest) : null);
   const selectedUserLabel = selectedRequest
     ? getUserLabel(selectedRequest.profiles)
     : "Unknown User";
@@ -312,17 +380,15 @@ export default function CaptionRequestsTable({
               <div className="text-sm text-zinc-100">{request.id}</div>
               <div className="flex items-center">
                 <div className="h-12 w-12 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
-                  {(
-                    (request.image_id
-                      ? imageUrlMap[String(request.image_id)] ?? null
-                      : null) ?? request.images?.url
-                  ) ? (
+                  {((request.image_id
+                    ? imageUrlMap[String(request.image_id)] ?? null
+                    : null) ?? getInlineImageUrl(request)) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={
                         (request.image_id
                           ? imageUrlMap[String(request.image_id)] ?? null
-                          : null) ?? request.images?.url ?? ""
+                          : null) ?? getInlineImageUrl(request) ?? ""
                       }
                       alt="Request"
                       className="h-full w-full object-cover"
