@@ -109,7 +109,7 @@ export default function SidebarNav({
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">
-      <aside className="fixed left-0 top-0 flex h-screen w-56 flex-col border-r border-zinc-900 bg-black px-6 pb-8 pt-10">
+      <aside className="sidebar-shell fixed left-0 top-0 flex h-screen w-56 flex-col border-r border-zinc-900 bg-black px-6 pb-8 pt-10">
         <nav className="space-y-3">
           {NAV_ITEMS.map((item) => {
             const isActive = item.key === activeKey;
@@ -174,9 +174,9 @@ export default function SidebarNav({
                     <Link
                       href={item.href}
                       onClick={() => setOpen(true)}
-                      className={`block w-full rounded-full px-6 py-3 text-left text-sm font-semibold tracking-wide transition ${
+                      className={`sidebar-item block w-full rounded-full px-6 py-3 text-left text-sm font-semibold tracking-wide transition ${
                         isRouteActive
-                          ? "border border-zinc-700 bg-zinc-900 text-white shadow-[0_0_0_1px_rgba(63,63,70,0.7)]"
+                          ? "sidebar-item-active border border-zinc-700 bg-zinc-900 text-white shadow-[0_0_0_1px_rgba(63,63,70,0.7)]"
                           : "border border-zinc-800 bg-zinc-950 text-zinc-200 hover:bg-zinc-900"
                       }`}
                     >
@@ -185,7 +185,7 @@ export default function SidebarNav({
                     <button
                       type="button"
                       onClick={() => setOpen((open) => !open)}
-                      className="rounded-full border border-zinc-800 bg-zinc-950 px-2 py-2 text-xs text-zinc-400"
+                      className="sidebar-toggle rounded-full border border-zinc-800 bg-zinc-950 px-2 py-2 text-xs text-zinc-400"
                       aria-label={`Toggle ${item.label} submenu`}
                     >
                       {isOpen ? "▴" : "▾"}
@@ -199,9 +199,9 @@ export default function SidebarNav({
                           <Link
                             key={child.key}
                             href={child.href}
-                            className={`block rounded-full px-5 py-2 text-xs font-semibold tracking-wide transition ${
+                            className={`sidebar-child-item block rounded-full px-5 py-2 text-xs font-semibold tracking-wide transition ${
                               isChildActive
-                                ? "border border-amber-300/70 bg-amber-300/90 text-zinc-900"
+                                ? "sidebar-child-item-active border border-amber-300/70 bg-amber-300/90 text-zinc-900"
                                 : "border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
                             }`}
                           >
@@ -219,9 +219,9 @@ export default function SidebarNav({
               <Link
                 key={item.key}
                 href={item.href}
-                className={`block w-full rounded-full px-6 py-3 text-left text-sm font-semibold tracking-wide transition ${
+                className={`sidebar-item block w-full rounded-full px-6 py-3 text-left text-sm font-semibold tracking-wide transition ${
                   isActive
-                    ? "border border-zinc-700 bg-zinc-900 text-white shadow-[0_0_0_1px_rgba(63,63,70,0.7)]"
+                    ? "sidebar-item-active border border-zinc-700 bg-zinc-900 text-white shadow-[0_0_0_1px_rgba(63,63,70,0.7)]"
                     : "border border-zinc-800 bg-zinc-950 text-zinc-200 hover:bg-zinc-900"
                 }`}
               >

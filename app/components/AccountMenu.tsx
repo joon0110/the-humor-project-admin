@@ -17,14 +17,14 @@ export default function AccountMenu({ displayName }: AccountMenuProps) {
   return (
     <div className="relative">
       {isAccountOpen && (
-        <div className="absolute -top-16 left-0 w-full rounded-[26px] border border-zinc-800 bg-zinc-950 px-4 py-3 shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
+        <div className="account-menu-dropdown absolute -top-16 left-0 w-full rounded-[26px] border border-zinc-800 bg-zinc-950 px-4 py-3 shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
           <SignOutButton />
         </div>
       )}
       <button
         type="button"
         onClick={() => setIsAccountOpen((open) => !open)}
-        className="flex w-full items-center justify-between rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-4 text-left shadow-[0_12px_24px_rgba(0,0,0,0.35)]"
+        className="account-menu-button flex w-full items-center justify-between rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-4 text-left shadow-[0_12px_24px_rgba(0,0,0,0.35)]"
       >
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-400">

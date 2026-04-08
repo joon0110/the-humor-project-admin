@@ -24,6 +24,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var mode=localStorage.getItem("theme-mode")||"system";var dark=window.matchMedia("(prefers-color-scheme: dark)").matches;var resolved=mode==="system"?(dark?"dark":"light"):mode;document.documentElement.setAttribute("data-theme",resolved);}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`,
+          }}
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>

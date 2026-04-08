@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -62,10 +62,40 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
 }
 
 export default function ThemeMenu() {
-  const [selectedTheme, setSelectedTheme] = useState<ThemeMode>("dark");
+  const [selectedTheme, setSelectedTheme] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "system";
+    const storedTheme = window.localStorage.getItem("theme-mode");
+    if (
+      storedTheme === "light" ||
+      storedTheme === "dark" ||
+      storedTheme === "system"
+    ) {
+      return storedTheme;
+    }
+    return "system";
+  });
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = (mode: ThemeMode) => {
+      const resolved = mode === "system" ? (media.matches ? "dark" : "light") : mode;
+      document.documentElement.setAttribute("data-theme", resolved);
+    };
+
+    applyTheme(selectedTheme);
+    window.localStorage.setItem("theme-mode", selectedTheme);
+
+    const handleMediaChange = () => {
+      if (selectedTheme === "system") {
+        applyTheme("system");
+      }
+    };
+    media.addEventListener("change", handleMediaChange);
+    return () => media.removeEventListener("change", handleMediaChange);
+  }, [selectedTheme]);
 
   return (
-    <div className="rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-4 shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
+    <div className="theme-menu-card rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-4 shadow-[0_12px_24px_rgba(0,0,0,0.35)]">
       <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-400">
         Theme
       </div>
@@ -77,9 +107,9 @@ export default function ThemeMenu() {
               key={option.key}
               type="button"
               onClick={() => setSelectedTheme(option.key)}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border p-0 transition ${
+              className={`theme-menu-option flex h-10 w-10 shrink-0 items-center justify-center rounded-full border p-0 transition ${
                 isSelected
-                  ? "border-zinc-600 bg-zinc-900 text-zinc-100"
+                  ? "theme-menu-option-active border-zinc-600 bg-zinc-900 text-zinc-100"
                   : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900"
               }`}
               aria-label={`${option.label} theme`}
